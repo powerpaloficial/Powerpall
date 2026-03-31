@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PowerPal Network</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <style>
+        :root { --green: #0ecb81; --dark: #0a0a0a; --card: #151515; }
+        body { background: var(--dark); color: white; font-family: sans-serif; margin: 0; padding: 20px; padding-bottom: 80px; }
+        .card { background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid #222; margin-bottom: 15px; }
+        .balance-title { color: #888; font-size: 12px; text-transform: uppercase; }
+        .balance-val { font-size: 40px; font-weight: 800; margin: 10px 0; color: var(--green); }
+        
+        /* Реферална секция */
+        .ref-box { background: #1a1a1a; border: 1px dashed var(--green); padding: 15px; border-radius: 15px; margin-top: 20px; }
+        .ref-link { background: #000; padding: 10px; border-radius: 8px; font-size: 11px; color: #888; word-break: break-all; margin: 10px 0; border: 1px solid #333; }
+        .copy-btn { width: 100%; padding: 12px; background: var(--green); border: none; border-radius: 10px; font-weight: bold; cursor: pointer; color: black; }
+        
+        .nav-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #111; height: 65px; display: flex; border-top: 1px solid #222; }
+        .nav-item { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #666; cursor: pointer; }
+        .nav-item.active { color: var(--green); font-weight: bold; }
+        
+        .page { display: none; }
+        .page.active { display: block; }
+        
+        #auth { position: fixed; inset: 0; background: black; z-index: 1000; display: flex; flex-direction: column; justify-content: center; padding: 30px; }
+        input { width: 100%; padding: 15px; background: #111; border: 1px solid #333; border-radius: 12px; color: white; margin-bottom: 15px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div id="auth">
+        <h1 style="color: var(--green); text-align: center;">PowerPal</h1>
+        <input type="tel" id="u_phone" placeholder="Телефон">
+        <input type="password" id="u_pass" placeholder="Парола">
+        <button class="copy-btn" onclick="handleLogin()">ВХОД / РЕГИСТРАЦИЯ</button>
+    </div>
+
+    <div id="p-profile" class="page active">
+        <div class="card">
+            <div class="balance-title">Вашият Баланс</div>
+            <div class="balance-val">€ <span id="val-bal">0.00</span></div>
+        </div>
+
+        <div class="ref-box">
+            <b style="font-size: 14px;">ПОКАНИ ПРИЯТЕЛ И ВЗЕМИ €1.00</b>
+            <p style="font-size: 12px; color: #888;">Всеки човек, който се регистрира през твоя линк, ти носи бонус!</p>
+            <div class="ref-link" id="val-link">Генериране на линк...</div>
+            <button class="copy-btn" onclick="copyRef()">КОПИРАЙ ЛИНК</button>
+        </div>
+    </div>
+
+    <div id="p-team" class="page">
+        <h2 style="color: var(--green);">Моят Екип</h2>
+        <div class="card">
+            <div class="balance-title">Общо поканени хора</div>
+            <div style="font-size: 30px; font-weight: bold; margin-top:10px;"><span id="val-team">0</span> души</div>
+        </div>
+    </div>
+
+    <div class="nav-bar">
+        <div class="nav-item active" onclick="showP('profile', this)">ПРОФИЛ</div>
+        <div class="nav-item" onclick="showP('team', this)">ЕКИП</div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCugN57R0Xm4Q-2g00aJ0-GxX95A8v07AA",
+            authDomain: "powerpall.firebaseapp.com",
+            projectId: "powerpall",
+            databaseURL: "https://powerpall-default-rtdb.europe-west1.firebasedatabase.app",
+            appId: "1:334776969049:web:7dd2593654b445e75f8e48"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function handleLogin() {
+            const ph = document.getElementById('u_phone').value.trim();
+            const pw = document.getElementById('u_pass').value.trim();
+            if(ph.length < 8) return alert("Въведете номер!");
+
+            const userRef = db.ref('users/' + ph);
+            userRef.once('value', s => {
+                if(!s.exists()) {
+                    const code = Math.random().toString(36).substring(7);
+                    userRef.set({ phone: ph, pass: pw, balance: 0, team: 0, refCode: code }).then(() => start(ph));
+                } else {
+                    if(s.val().pass === pw) start(ph);
+                    else alert("Грешна парола!");
+                }
+            });
+        }
+
+        function start(id) {
+            document.getElementById('auth').style.display = 'none';
+            db.ref('users/' + id).on('value', s => {
+                const data = s.val();
+                document.getElementById('val-bal').innerText = data.balance.toFixed(2);
+                document.getElementById('val-team').innerText = data.team || 0;
+                document.getElementById('val-link').innerText = window.location.origin + window.location.pathname + "?ref=" + data.refCode;
+            });
+        }
+
+        function showP(p, el) {
+            document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+            document.getElementById('p-' + p).classList.add('active');
+            el.classList.add('active');
+        }
+
+        function copyRef() {
+            const t = document.getElementById('val-link').innerText;
+            navigator.clipboard.writeText(t).then(() => alert("Линкът е копиран!"));
+        }
+    </script>
+</body>
+</html>

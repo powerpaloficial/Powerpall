@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PowerPal | Energy Investing</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --gold: #f2e032;
+            --bg: #0b0e11;
+            --card: #1e2329;
+            --text-main: #ffffff;
+            --text-dim: #848e9c;
+            --green: #02c076;
+            --red: #f6465d;
+            --nav-bg: #181a20;
+        }
+
+        body { background-color: var(--bg); color: var(--text-main); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; display: flex; justify-content: center; }
+        .app-container { width: 100%; max-width: 450px; min-height: 100vh; padding-bottom: 100px; position: relative; }
+
+        /* --- AUTH SCREEN --- */
+        #auth-screen { padding: 40px 20px; text-align: center; }
+        .logo { font-size: 38px; font-weight: 900; color: var(--gold); margin-bottom: 5px; }
+        .subtitle { color: var(--text-dim); margin-bottom: 30px; font-size: 14px; }
+        .input-group { text-align: left; margin-bottom: 15px; }
+        label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; font-weight: bold; text-transform: uppercase; }
+        input { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #474d57; background: var(--card); color: white; font-size: 16px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: var(--gold); }
+        .btn-main { background: var(--gold); color: #000; width: 100%; padding: 18px; border-radius: 12px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.3s; }
+
+        /* --- PAGES --- */
+        .page { display: none; padding: 20px; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .wallet-card { background: linear-gradient(135deg, #2b3139 0%, #1e2329 100%); padding: 25px; border-radius: 20px; border-left: 5px solid var(--gold); margin-bottom: 25px; text-align: center; }
+        .balance-amount { font-size: 36px; font-weight: bold; margin-top: 5px; color: var(--gold); }
+
+        /* --- EQUIPMENT LIST --- */
+        .package { background: var(--card); border-radius: 15px; margin-bottom: 12px; border: 1px solid #2b3139; overflow: hidden; }
+        .package-header { padding: 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+        .package-content { display: none; padding: 0 20px 20px 20px; background: rgba(255,255,255,0.02); border-top: 1px solid #2b3139; }
+        .info-row { display: flex; justify-content: space-between; margin-top: 15px; font-size: 14px; }
+        .btn-buy { background: transparent; border: 1px solid var(--gold); color: var(--gold); width: 100%; padding: 12px; border-radius: 10px; margin-top: 20px; font-weight: bold; cursor: pointer; }
+
+        /* --- WALLET & ACTIONS --- */
+        .action-box { background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid #2b3139; margin-bottom: 15px; }
+        .btn-action { background: var(--gold); color: #000; width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
+
+        /* --- MODAL --- */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }
+        .modal-content { background-color: var(--card); margin: 20% auto; padding: 25px; border-radius: 20px; width: 85%; max-width: 400px; border: 1px solid var(--gold); text-align: center; }
+        .wallet-addr-display { background: #000; padding: 12px; border-radius: 8px; word-break: break-all; color: var(--gold); font-family: monospace; margin: 15px 0; border: 1px dashed #474d57; font-size: 13px; }
+
+        /* --- NAV BAR --- */
+        .nav-bar { position: fixed; bottom: 0; width: 100%; max-width: 450px; background: var(--nav-bg); display: flex; justify-content: space-around; padding: 15px 0; border-top: 1px solid #2b3139; z-index: 1000; }
+        .nav-item { color: var(--text-dim); text-align: center; cursor: pointer; font-size: 11px; flex: 1; }
+        .nav-item i { font-size: 22px; margin-bottom: 5px; display: block; }
+        .nav-item.active { color: var(--gold); }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+    <div id="auth-screen">
+        <div class="logo">PowerPal</div>
+        <div class="subtitle">Investment Gateway</div>
+        
+        <div class="input-group">
+            <label>Full Name</label>
+            <input type="text" id="reg-name" placeholder="Иван Иванов">
+        </div>
+        
+        <div class="input-group">
+            <label>Mobile Number</label>
+            <input type="tel" id="phone">
+        </div>
+        
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="password" placeholder="••••••••">
+        </div>
+        
+        <button class="btn-main" onclick="login()">ENTER ACCOUNT</button>
+    </div>
+
+    <div id="page-home" class="page">
+        <div class="logo" style="font-size: 24px; margin-bottom: 20px;">PowerPal</div>
+        <div class="wallet-card">
+            <div style="color: var(--text-dim)">Available Balance</div>
+            <div class="balance-amount" id="balance-display">€ 0.00</div>
+        </div>
+
+        <h3 style="margin-bottom: 15px;">Mining Equipment</h3>
+
+        <div class="package">
+            <div class="package-header" onclick="togglePack('t1')"><span>⚡ 1 Port (T1)</span><span>80€ ▼</span></div>
+            <div id="t1" class="package-content">
+                <div class="info-row"><span>Daily:</span><b style="color: var(--green)">3.20€</b></div>
+                <div class="info-row"><span>Monthly:</span><b>96.00€</b></div>
+                <button class="btn-buy" onclick="buy('T1', '80€')">RENT NOW</button>
+            </div>
+        </div>
+
+        <div class="package">
+            <div class="package-header" onclick="togglePack('t2')"><span>⚡ 8 Port (T2)</span><span>500€ ▼</span></div>
+            <div id="t2" class="package-content">
+                <div class="info-row"><span>Daily:</span><b style="color: var(--green)">22.50€</b></div>
+                <div class="info-row"><span>Monthly:</span><b>675.00€</b></div>
+                <button class="btn-buy" onclick="buy('T2', '500€')">RENT NOW</button>
+            </div>
+        </div>
+
+        <div class="package">
+            <div class="package-header" onclick="togglePack('t3')"><span>⚡ 16 Port (T3)</span><span>1,200€ ▼</span></div>
+            <div id="t3" class="package-content">
+                <div class="info-row"><span>Daily:</span><b style="color: var(--green)">61.00€</b></div>
+                <div class="info-row"><span>Monthly:</span><b>1,830.00€</b></div>
+                <button class="btn-buy" onclick="buy('T3', '1,200€')">RENT NOW</button>
+            </div>
+        </div>
+
+        <div class="package">
+            <div class="package-header" onclick="togglePack('t4')"><span>⚡ 24 Port (T4)</span><span>3,000€ ▼</span></div>
+            <div id="t4" class="package-content">
+                <div class="info-row"><span>Daily:</span><b style="color: var(--green)">170.00€</b></div>
+                <div class="info-row"><span>Monthly:</span><b>5,100.00€</b></div>
+                <button class="btn-buy" onclick="buy('T4', '3,000€')">RENT NOW</button>
+            </div>
+        </div>
+
+        <div class="package">
+            <div class="package-header" onclick="togglePack('t5')"><span>⚡ 48 Port (T5)</span><span>6,500€ ▼</span></div>
+            <div id="t5" class="package-content">
+                <div class="info-row"><span>Daily:</span><b style="color: var(--green)">440.00€</b></div>
+                <div class="info-row"><span>Monthly:</span><b>13,200.00€</b></div>
+                <button class="btn-buy" onclick="buy('T5', '6,500€')">RENT NOW</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="page-wallet" class="page">
+        <h3>My Wallet</h3>
+        <div class="wallet-card" style="background: var(--nav-bg);">
+            <div style="font-size: 14px; color: var(--text-dim);">Withdrawable Balance</div>
+            <div class="balance-amount" id="wallet-balance-display">€ 0.00</div>
+        </div>
+
+        <div class="action-box">
+            <label>Your TON Address (Withdrawal)</label>
+            <input type="text" id="user-ton-address" placeholder="UQCu... (Поставете адрес)">
+            <button class="btn-action" onclick="saveTonAddress()">SAVE ADDRESS</button>
+        </div>
+
+        <div class="action-box">
+            <label>Withdraw Amount (€)</label>
+            <input type="number" id="withdraw-amount" placeholder="Min. 10€">
+            <button class="btn-action" style="background: var(--green); color: white;" onclick="requestWithdraw()">SEND REQUEST</button>
+        </div>
+    </div>
+
+    <div id="page-profile" class="page">
+        <h3>My Profile</h3>
+        <div class="action-box">
+            <div style="margin-bottom: 10px;">👤 <b>Name:</b> <span id="profile-name">---</span></div>
+            <div style="margin-bottom: 10px;">📱 <b>ID:</b> <span id="profile-id">---</span></div>
+            <hr style="border: 0.1px solid #2b3139; margin: 15px 0;">
+            <div style="color: var(--green); font-size: 14px;"><i class="fa-solid fa-circle-check"></i> Account Verified</div>
+        </div>
+        <button class="btn-main" style="background: var(--red); color: white;" onclick="location.reload()">LOGOUT</button>
+    </div>
+
+    <div class="nav-bar" id="bottom-nav" style="display: none;">
+        <div class="nav-item active" onclick="showPage('home', this)"><i class="fa-solid fa-bolt"></i>Mining</div>
+        <div class="nav-item" onclick="showPage('wallet', this)"><i class="fa-solid fa-wallet"></i>Wallet</div>
+        <div class="nav-item" onclick="showPage('profile', this)"><i class="fa-solid fa-user"></i>Profile</div>
+    </div>
+
+    <div id="paymentModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0">Депозит с TON</h3>
+            <p style="font-size: 14px;">За активиране на <b id="selected-plan">---</b>, изпратете TON на:</p>
+            <div class="wallet-addr-display" id="admin-wallet">UQCuIUIrH59P3BhCYSXiQEp8abCk3Hx83M1JH95wrdhh-Z4C</div>
+            <button class="btn-action" onclick="copyAdminWallet()">КОПИРАЙ АДРЕСА</button>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 15px;">След превода, активирането става автоматично след потвърждение в мрежата.</div>
+            <button class="btn-buy" style="border-color: var(--red); color: var(--red); margin-top: 15px;" onclick="closeModal()">ЗАТВОРИ</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- FIREBASE CONFIG ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyASwS2MDuIRZas0vyFj12FzS3tl127Qjtw",
+        authDomain: "powerpal-oficial.firebaseapp.com",
+        databaseURL: "https://powerpal-oficial-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "powerpal-oficial",
+        storageBucket: "powerpal-oficial.firebasestorage.app",
+        messagingSenderId: "330467490708",
+        appId: "1:330467490708:web:bb5bc023544d9921ebad81"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    let currentUserPhone = "";
+
+    // Телефонен инпут настройки
+    const phoneInput = document.querySelector("#phone");
+    const iti = window.intlTelInput(phoneInput, {
+        initialCountry: "bg",
+        separateDialCode: true,
+        utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js",
+    });
+
+    // --- ЛОГИКА ВХОД / РЕГИСТРАЦИЯ ---
+    function login() {
+        const name = document.getElementById('reg-name').value;
+        const phone = iti.getNumber().replace(/\D/g, '');
+        const password = document.getElementById('password').value;
+
+        if (phone.length < 7 || password.length < 3 || name.length < 2) {
+            alert("Моля, попълнете правилно име, телефон и парола!");
+            return;
+        }
+
+        currentUserPhone = phone;
+        const userRef = db.ref('users/' + phone);
+
+        userRef.once('value').then((snapshot) => {
+            if (!snapshot.exists()) {
+                // Нова регистрация
+                userRef.set({
+                    name: name,
+                    phone: phone,
+                    password: password,
+                    balance: 0,
+                    tonAddress: "",
+                    regDate: new Date().toISOString()
+                });
+            }
+            
+            // Преход към приложението
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('bottom-nav').style.display = 'flex';
+            showPage('home', document.querySelector('.nav-item'));
+
+            // Синхронизация на данни в реално време
+            userRef.on('value', (s) => {
+                const data = s.val();
+                if(data) {
+                    const balance = (data.balance || 0).toFixed(2);
+                    document.getElementById('balance-display').innerText = "€ " + balance;
+                    document.getElementById('wallet-balance-display').innerText = "€ " + balance;
+                    document.getElementById('profile-name').innerText = data.name;
+                    document.getElementById('profile-id').innerText = "+" + data.phone;
+                    if(data.tonAddress) document.getElementById('user-ton-address').value = data.tonAddress;
+                }
+            });
+        });
+    }
+
+    // --- НАВИГАЦИЯ ---
+    function showPage(id, el) {
+        document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+        document.getElementById('page-' + id).style.display = 'block';
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        el.classList.add('active');
+    }
+
+    function togglePack(id) {
+        const el = document.getElementById(id);
+        el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+    }
+
+    // --- ПОРТФЕЙЛ И ТЕГЛЕНЕ ---
+    function saveTonAddress() {
+        const addr = document.getElementById('user-ton-address').value.trim();
+        if(addr.length < 10) { alert("Невалиден адрес!"); return; }
+        db.ref('users/' + currentUserPhone).update({ tonAddress: addr });
+        alert("Адресът е запазен!");
+    }
+
+    function requestWithdraw() {
+        const amount = parseFloat(document.getElementById('withdraw-amount').value);
+        if(isNaN(amount) || amount < 10) { alert("Минимална сума: 10€"); return; }
+
+        db.ref('users/' + currentUserPhone).once('value', (snapshot) => {
+            const data = snapshot.val();
+            if(amount > data.balance) {
+                alert("Нямате достатъчна наличност!");
+            } else if(!data.tonAddress) {
+                alert("Първо запазете своя TON адрес!");
+                showPage('wallet', document.querySelectorAll('.nav-item')[1]);
+            } else {
+                // Запис на заявката
+                db.ref('withdrawals').push({
+                    user: currentUserPhone,
+                    name: data.name,
+                    amount: amount,
+                    address: data.tonAddress,
+                    time: new Date().toISOString(),
+                    status: 'pending'
+                });
+                alert("Заявката е приета и се обработва!");
+            }
+        });
+    }
+
+    // --- ДЕПОЗИТ (MODAL) ---
+    function buy(plan, price) {
+        document.getElementById('selected-plan').innerText = plan + " (" + price + ")";
+        document.getElementById('paymentModal').style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('paymentModal').style.display = 'none';
+    }
+
+    function copyAdminWallet() {
+        const text = document.getElementById('admin-wallet').innerText;
+        navigator.clipboard.writeText(text).then(() => alert("Адресът е копиран!"));
+    }
+
+    // Клик извън модала го затваря
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('paymentModal')) {
+            closeModal();
+        }
+    }
+</script>
+
+</body>
+</html>
